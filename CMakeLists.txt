@@ -45,16 +45,6 @@ add_executable(merge_sar_image merge_sar_image.cpp template_sarImage_process.h)
 target_link_libraries(merge_sar_image PRIVATE GDAL::GDAL)
 target_link_libraries(merge_sar_image PRIVATE spdlog::spdlog spdlog::spdlog_header_only)
 
-# 复数二维数组滤波
-add_executable(fcpx_filter fcpx_filter.cpp datatype.h)
-target_link_libraries(fcpx_filter PRIVATE GDAL::GDAL)
-target_link_libraries(fcpx_filter PRIVATE spdlog::spdlog spdlog::spdlog_header_only)
-if(OpenMP_FOUND)
-    target_link_libraries(fcpx_filter PRIVATE OpenMP::OpenMP_CXX)
-else()
-    message(FATAL_ERROR "openmp not found!")
-endif()
-
 # 从数据B中复制一块区域填充到A数据中(几何关系一致)
 add_executable(geoimage_copy_ref_paste_to_target copy_Geoimage_paste.cpp datatype.h datatype.cpp)
 target_link_libraries(geoimage_copy_ref_paste_to_target PRIVATE GDAL::GDAL)
