@@ -184,81 +184,105 @@ funcrst rolling_guidance(float* arr_in, int height, int width, float* arr_out, i
 	return funcrst(true, "rolling_guidance finished.");
 }
 
-// funcrst rolling_guidance(complex<float>* arr_in, int height, int width, complex<float>* arr_out, int step, int size, double delta_s, double delta_r)
-// {
-// 	auto is_point_in_image = [width, height]( int i, int j){
-// 		if(i < 0 || j < 0 || i > height - 1 || j > width - 1)
-// 			return false;
-// 		return true;
-// 	};
+/// SSR: Small Structure Removal
+funcrst rolling_guidance_SSR(
+	int height, int width, 
+	complex<float>* arr_ori, 
+	complex<float>* arr_j0, 
+	int size, 
+	double delta_s)
+{
+	auto is_point_in_image = [width, height]( int i, int j)->bool{
+		if(i < 0 || j < 0 || i > height - 1 || j > width - 1)
+			return false;
+		return true;
+	};
 
-// 	//Step1: Small Structure Removal
-// 	float* jt0 = new float[height * width];
+	//Step1: Small Structure Removal
+	if(arr_j0 == nullptr){
+		arr_j0 = new complex<float>[height * width];
+	}else{
+		delete[] arr_j0;
+		arr_j0 = new complex<float>[height * width];
+	}
 
-// #pragma omp parallel for
-// 	for(int i = 0; i < height; i++){
-// 		for(int j = 0; j < width; j++){
+#pragma omp parallel for
+	for(int i = 0; i < height; i++){
+		for(int j = 0; j < width; j++){
 
-// 			float G = 0, K = 0;
-// 			for (int m = -size; m <= size; m++){
-// 				for (int n = -size; n <= size; n++){
-// 					if(!is_point_in_image(i+m, j+n))
-// 						continue;
-// 					float temp = (float)exp(-(m*m+n*n) / 2. / pow(delta_s, 2));
-// 					K += temp;
-// 					G += temp * arr_in[(i+m)*width + (j+n)];
-// 				}
-// 			}
-// 			jt0[i * width + j] = (K == 0. ? 0 : G / K);
-// 		}
-// 	}
+			complex<float> G(0,0);
+			float K = 0;
+			for (int m = -size; m <= size; m++){
+				for (int n = -size; n <= size; n++){
+					if(!is_point_in_image(i+m, j+n))
+						continue;
+					float temp = (float)exp(-(m*m+n*n) / 2. / pow(delta_s, 2));
+					K += temp;
+					G += temp * arr_ori[(i+m)*width + (j+n)];
+				}
+			}
+			arr_j0[i * width + j] = (K == 0 ? 0 : G / K);
+		}
+	}
 
-// 	//Step2: Edge Recovery (iteration)
-// 	int iter_num = 0;
-// 	do{
-// 		/// init jt1
-// 		float* jt1 = new float[height * width];
+	return funcrst(true, "rolling_guidance_SSR finished.");
+}
 
-// #pragma omp parallel for
-// 		for(int i = 0; i < height; i++){
-// 			for(int j = 0; j < width; j++){
+/// ER: Edge Recovery
+funcrst rolling_guidance_ER(
+	int height, int width, 
+	complex<float>* arr_ori, complex<float>* arr_j0, 
+	complex<float>* arr_out,  
+	int step, int size, 
+	double delta_s, double delta_r)
+{
+	auto is_point_in_image = [width, height]( int i, int j)->bool{
+		if(i < 0 || j < 0 || i > height - 1 || j > width - 1)
+			return false;
+		return true;
+	};
 
-// 				float J = 0, K = 0;
-// 				for (int m = -size; m <= size; m++){
-// 					for (int n = -size; n <= size; n++){
-// 						if(!is_point_in_image(i+m, j+n))
-// 							continue;
-// 						float temp = (float)exp(-(m*m+n*n) / 2. / pow(delta_s, 2) - pow(jt0[(i+m)*width+(j+n)] - jt0[i*width+j], 2) / (2 * pow(delta_r, 2)) );
-// 						K += temp;
-// 						J += temp * arr_in[(i+m)*width + (j+n)];
-// 					}
-// 				}
+	auto cpx_phase = [](complex<float> cpx)->float{
+		return atan2(cpx.imag(), cpx.real());
+	};
+
+	//Step2: Edge Recovery Iteration
+	int iter_num = 0;
+	complex<float>* jt0 = new complex<float>[height * width];
+	for(int i=0; i< height * width; i++){
+		jt0[i] = arr_j0[i];
+	}
+	do{
+		complex<float>* jt1 = new complex<float>[height * width];
+
+#pragma omp parallel for
+		for(int i = 0; i < height; i++){
+			for(int j = 0; j < width; j++){
+
+				complex<float> J(0,0);
+				float K = 0;
+				for (int m = -size; m <= size; m++){
+					for (int n = -size; n <= size; n++){
+						if(!is_point_in_image(i+m, j+n))
+							continue;
+							
+						float temp = (float)exp(-(m*m+n*n) / 2. / pow(delta_s, 2) - pow(cpx_phase(jt0[(i+m)*width+(j+n)]) - cpx_phase(jt0[i*width+j]), 2) / (2 * pow(delta_r, 2)) );
+						K += temp;
+						J += temp * arr_ori[(i+m)*width + (j+n)];
+					}
+				}
 				
-// 				jt1[i * width + j] = (K == 0. ? 0 : J / K);
-// 			}
-// 		}
+				jt1[i * width + j] = (K == 0. ? 0 : J / K);
+			}
+		}
 
-// 		for(size_t i=0; i < height*width; i++){
-// 			jt0[i] = jt1[i];
-// 		}
-// 		delete[] jt1;
+		for(size_t i=0; i < height*width; i++){
+			jt0[i] = jt1[i];
+		}
+		delete[] jt1;
 
-// 		iter_num++;
-// 	} while (iter_num < step);
+		iter_num++;
+	} while (iter_num < step);
 
-// 	if(arr_out == nullptr){
-// 		arr_out = new float[height * width];
-// 	}
-// 	else if(dynamic_array_size(arr_out) != height * width){
-// 		delete[] arr_out;
-// 		arr_out = new float[height * width];
-// 	}
-
-// 	for(size_t i=0; i < height * width; i++){
-// 		arr_out[i] = jt0[i];
-// 	}
-
-// 	delete[] jt0;
-	
-// 	return funcrst(true, "rolling_guidance finished.");
-// }
+	return funcrst(true, "rolling_guidance_ER finished.");
+}
