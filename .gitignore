@@ -34,5 +34,6 @@
 .vscode
 build
 
+#install
 bin
 lib
