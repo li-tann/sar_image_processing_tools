@@ -2,6 +2,19 @@
 
 image processing functions for sar
 
+临时性地在终端内添加环境变量, 可以直接使用exe
+
+```shell
+#powershell
+$env:path += ";/to/gdal_tool/path/bin"
+
+#cmd
+set path="%path%;/to/gdal_tool/path/bin"
+
+#linux
+export PATH="$PATH:/to/gdal_tool/path/bin"
+```
+
 ## debug_config_test
 
 测试debug配置参数的模块
