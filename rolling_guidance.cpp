@@ -24,6 +24,9 @@ string EXE_PLUS_FILENAME(string extention){
 }
 
 funcrst rolling_guidance(float* arr_in, int height, int width, float* arr_out, int step, int size, double delta_s, double delta_r);
+funcrst rolling_guidance_SSR(int height, int width, complex<float>* arr_ori, complex<float>* arr_j0, int size, double delta_s);
+funcrst rolling_guidance_ER(int height, int width, complex<float>* arr_ori, complex<float>* arr_j0, complex<float>* arr_out,  int step, int size, double delta_s, double delta_r);
+
 
 int main(int argc, char* argv[])
 {
@@ -76,31 +79,68 @@ int main(int argc, char* argv[])
     int height= ds->GetRasterYSize();
     GDALDataType datatype = rb->GetRasterDataType();
 
-	if(datatype != GDT_Float32){
-		return return_msg(-2, "datatype is diff with float or fcomplex(not support yet).");
+	if(datatype != GDT_Float32 && datatype != GDT_CFloat32){
+		return return_msg(-2, "datatype is diff with float or fcomplex.");
 	}
 
-	float* arr = new float[width * height];
-	float* arr_out = new float[width * height];
-	rb->RasterIO(GF_Read, 0, 0, width, height, arr, width, height, datatype, 0, 0);
-	rolling_guidance(arr, height, width, arr_out, step, size, delta_s, delta_r);
+	
+	switch (datatype)
+	{
+	case GDT_Float32:{
+		float* arr_out = new float[width * height];
+		float* arr = new float[width * height];
+		rb->RasterIO(GF_Read, 0, 0, width, height, arr, width, height, datatype, 0, 0);
+		rolling_guidance(arr, height, width, arr_out, step, size, delta_s, delta_r);
+		delete[] arr;
+		GDALClose(ds);
 
-    delete[] arr;
-	GDALClose(ds);
+		GDALDriver* dv = GetGDALDriverManager()->GetDriverByName("GTiff");
+		GDALDataset* ds_out = dv->Create(argv[3], width, height, 1, datatype, NULL);
+		if(!ds_out){
+			delete[] arr_out;
+			return return_msg(-3, "ds_out create failed.");
+		}
+		GDALRasterBand* rb_out = ds_out->GetRasterBand(1);
 
-	GDALDriver* dv = GetGDALDriverManager()->GetDriverByName("GTiff");
-    GDALDataset* ds_out = dv->Create(argv[3], width, height, 1, datatype, NULL);
-    if(!ds_out){
+		rb_out->RasterIO(GF_Write, 0, 0, width, height, arr_out, width, height, datatype, 0, 0);
+
 		delete[] arr_out;
-        return return_msg(-3, "ds_out create failed.");
-    }
-    GDALRasterBand* rb_out = ds_out->GetRasterBand(1);
+		GDALClose(ds_out);
+	}break;
+	case GDT_CFloat32:{
+		complex<float>* arr = new complex<float>[width * height];
+		complex<float>* arr_jt0 = new complex<float>[width * height];
+		rb->RasterIO(GF_Read, 0, 0, width, height, arr, width, height, datatype, 0, 0);
+		cout<<"1"<<endl;
+		rolling_guidance_SSR(height, width, arr, arr_jt0, size, delta_s);
+		cout<<arr_jt0[1].real();
+		cout<<"2"<<endl;
+		complex<float>* arr_out = new complex<float>[width * height];
+		rolling_guidance_ER(height, width, arr, arr_jt0, arr_out, step, size, delta_s, delta_r);
+		cout<<"3"<<endl;
+		delete[] arr;
+		delete[] arr_jt0;
+		GDALClose(ds);
 
-	rb_out->RasterIO(GF_Write, 0, 0, width, height, arr_out, width, height, datatype, 0, 0);
+		GDALDriver* dv = GetGDALDriverManager()->GetDriverByName("GTiff");
+		GDALDataset* ds_out = dv->Create(argv[3], width, height, 1, datatype, NULL);
+		if(!ds_out){
+			delete[] arr_out;
+			return return_msg(-3, "ds_out create failed.");
+		}
+		GDALRasterBand* rb_out = ds_out->GetRasterBand(1);
 
-	delete[] arr_out;
-	GDALClose(ds_out);
-    
+		rb_out->RasterIO(GF_Write, 0, 0, width, height, arr_out, width, height, datatype, 0, 0);
+
+		delete[] arr_out;
+		GDALClose(ds_out);
+	}break;
+	default:
+		return return_msg(-1,"unknown datatype.");
+		break;
+	}
+
+	return_msg(1, fmt::format("{} spend time :{}s",EXE_NAME, spend_time(start)));
     return return_msg(1, EXE_NAME " end.");
 }
 
@@ -201,7 +241,7 @@ funcrst rolling_guidance_SSR(
 	//Step1: Small Structure Removal
 	if(arr_j0 == nullptr){
 		arr_j0 = new complex<float>[height * width];
-	}else{
+	}else if(dynamic_array_size(arr_j0) != width * height){
 		delete[] arr_j0;
 		arr_j0 = new complex<float>[height * width];
 	}
@@ -252,10 +292,11 @@ funcrst rolling_guidance_ER(
 	for(int i=0; i< height * width; i++){
 		jt0[i] = arr_j0[i];
 	}
-	do{
+	
+	while(iter_num < step){
 		complex<float>* jt1 = new complex<float>[height * width];
 
-#pragma omp parallel for
+// #pragma omp parallel for
 		for(int i = 0; i < height; i++){
 			for(int j = 0; j < width; j++){
 
@@ -282,7 +323,11 @@ funcrst rolling_guidance_ER(
 		delete[] jt1;
 
 		iter_num++;
-	} while (iter_num < step);
+	};
+
+	for(int i=0; i< width * height; i++){
+		arr_out[i] = jt0[i];
+	}
 
 	return funcrst(true, "rolling_guidance_ER finished.");
 }
