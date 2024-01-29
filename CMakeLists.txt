@@ -170,16 +170,24 @@ file(COPY_FILE ${CMAKE_CURRENT_LIST_DIR}/proj.db ${CMAKE_CURRENT_LIST_DIR}/build
 
 
 # INSTALL
+set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_LIST_DIR}/install)
 
 # message("exe_list:" "${EXE_LIST}")
 install(TARGETS ${EXE_LIST}
         CONFIGURATIONS Release
-        RUNTIME DESTINATION ${CMAKE_CURRENT_LIST_DIR}/bin
-        LIBRARY DESTINATION ${CMAKE_CURRENT_LIST_DIR}/lib
-        ARCHIVE DESTINATION ${CMAKE_CURRENT_LIST_DIR}/lib
+        RUNTIME DESTINATION binary
+        LIBRARY DESTINATION library
+        ARCHIVE DESTINATION library
 )
 
 # GET_RUNTIME_DEPENDENCIES 可以导入第三方库, 但没有摸清楚怎么使用, 从网上找了个临时替代的方法, 如下所示
 file(GLOB DLLS "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/*.dll") # 假设DLLs在构建目录中
-install(FILES ${DLLS} DESTINATION ${CMAKE_CURRENT_LIST_DIR}/bin CONFIGURATIONS Release)
+install(FILES ${DLLS} DESTINATION binary CONFIGURATIONS Release)
 # message("DLLS: ${DLLS}")
+
+file(GLOB scripts "scripts/*.ps1" "scripts/*.bat") # 假设DLLs在构建目录中
+install(FILES ${scripts} DESTINATION binary CONFIGURATIONS Release)
+# message("scripts: ${scripts}")
+
+install(FILES ${CMAKE_CURRENT_LIST_DIR}/proj.db DESTINATION binary CONFIGURATIONS Release)
+install(FILES ${CMAKE_CURRENT_LIST_DIR}/vcruntime140d.dll ${CMAKE_CURRENT_LIST_DIR}/vcruntime140_1d.dll DESTINATION binary/vc CONFIGURATIONS Release)
