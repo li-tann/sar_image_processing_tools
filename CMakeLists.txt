@@ -162,6 +162,11 @@ else()
     message(FATAL_ERROR "openmp not found!")
 endif()
 
+add_executable(phase_simulation phase_simulation.cpp datatype.h datatype.cpp)
+target_link_libraries(phase_simulation PRIVATE GDAL::GDAL)
+target_link_libraries(phase_simulation PRIVATE spdlog::spdlog spdlog::spdlog_header_only)
+target_link_libraries(phase_simulation PRIVATE fmt::fmt)
+
 
 # add "cmake.configureSettings": {"CMAKE_BUILD_TYPE":"${buildType}"} in setting.json, when ${CMAKE_BUILD_TYPE} is ""
 message(STATUS "cmake build type: " ${CMAKE_BUILD_TYPE})
