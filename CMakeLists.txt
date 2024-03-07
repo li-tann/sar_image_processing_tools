@@ -14,6 +14,11 @@ find_package(fmt CONFIG REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(FFTW3f CONFIG REQUIRED)
 
+find_package(ZLIB REQUIRED)
+find_package(LibArchive REQUIRED)
+find_package(unofficial-minizip CONFIG REQUIRED)
+find_package(tinyxml2 CONFIG REQUIRED)
+
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
@@ -167,6 +172,16 @@ target_link_libraries(phase_simulation PRIVATE GDAL::GDAL)
 target_link_libraries(phase_simulation PRIVATE spdlog::spdlog spdlog::spdlog_header_only)
 target_link_libraries(phase_simulation PRIVATE fmt::fmt)
 set(EXE_LIST ${EXE_LIST} phase_simulation)
+
+add_executable(load_data_from_zip load_data_from_zip.cpp)
+target_link_libraries(load_data_from_zip PRIVATE GDAL::GDAL)
+target_link_libraries(load_data_from_zip PRIVATE spdlog::spdlog spdlog::spdlog_header_only)
+target_link_libraries(load_data_from_zip PRIVATE fmt::fmt)
+# set(EXE_LIST ${EXE_LIST} load_data_from_tar)    # 测试模块, 不需要install
+target_link_libraries(load_data_from_zip PRIVATE ZLIB::ZLIB)
+# target_link_libraries(load_data_from_zip PRIVATE LibArchive::LibArchive) # CMake >= 3.17
+target_link_libraries(load_data_from_zip PRIVATE unofficial::minizip::minizip)
+target_link_libraries(load_data_from_zip PRIVATE tinyxml2::tinyxml2)
 
 # add "cmake.configureSettings": {"CMAKE_BUILD_TYPE":"${buildType}"} in setting.json, when ${CMAKE_BUILD_TYPE} is ""
 message(STATUS "cmake build type: " ${CMAKE_BUILD_TYPE})
