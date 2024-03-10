@@ -173,6 +173,8 @@ target_link_libraries(phase_simulation PRIVATE spdlog::spdlog spdlog::spdlog_hea
 target_link_libraries(phase_simulation PRIVATE fmt::fmt)
 set(EXE_LIST ${EXE_LIST} phase_simulation)
 
+
+#load data from .zip file
 add_executable(load_data_from_zip load_data_from_zip.cpp)
 target_link_libraries(load_data_from_zip PRIVATE GDAL::GDAL)
 target_link_libraries(load_data_from_zip PRIVATE spdlog::spdlog spdlog::spdlog_header_only)
@@ -183,11 +185,20 @@ target_link_libraries(load_data_from_zip PRIVATE ZLIB::ZLIB)
 target_link_libraries(load_data_from_zip PRIVATE unofficial::minizip::minizip)
 target_link_libraries(load_data_from_zip PRIVATE tinyxml2::tinyxml2)
 
+# load data from .tar.gz file
+add_executable(load_data_from_targz load_data_from_targz.cpp)
+target_link_libraries(load_data_from_targz PRIVATE GDAL::GDAL)
+target_link_libraries(load_data_from_targz PRIVATE spdlog::spdlog spdlog::spdlog_header_only)
+target_link_libraries(load_data_from_targz PRIVATE fmt::fmt)
+# set(EXE_LIST ${EXE_LIST} load_data_from_tar)    # 测试模块, 不需要install
+target_link_libraries(load_data_from_targz PRIVATE ZLIB::ZLIB)
+target_link_libraries(load_data_from_zip PRIVATE LibArchive::LibArchive) # CMake >= 3.17
+target_link_libraries(load_data_from_targz PRIVATE tinyxml2::tinyxml2)
+
 # add "cmake.configureSettings": {"CMAKE_BUILD_TYPE":"${buildType}"} in setting.json, when ${CMAKE_BUILD_TYPE} is ""
 message(STATUS "cmake build type: " ${CMAKE_BUILD_TYPE})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/build/${CMAKE_BUILD_TYPE})
 file(COPY_FILE ${CMAKE_CURRENT_LIST_DIR}/proj.db ${CMAKE_CURRENT_LIST_DIR}/build/${CMAKE_BUILD_TYPE}/proj.db ONLY_IF_DIFFERENT)
-
 
 # INSTALL
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_LIST_DIR}/install)
